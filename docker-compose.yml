@@ -1,0 +1,68 @@
+version: '3'
+services:
+
+  server:
+    image: webmagicagency/nginx
+    depends_on:
+      - php-fpm
+      - mysql
+      - laravel-echo
+      - redis
+    ports:
+      - "80:80"
+      - "8080:80"
+      - "443:443"
+    volumes:
+      - ".:/srv/app"
+      - "./.docker/server:/srv/server"
+      - "./.docker/server/.ssl:/srv/ssl"
+      - "./.docker/server/.letsencrypt/.etsencrypt:/etc/letsencrypt"
+      - "./.docker/server/.letsencrypt/lib-letsencrypt/:/var/lib/letsencrypt"
+      - "./.docker/server/.nginx/config/local:/etc/nginx/conf.d"
+    working_dir: "/srv/server"
+
+  php-fpm:
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+    environment:
+      - COMPOSER_MEMORY_LIMIT=-1
+    volumes:
+      - ".:/srv/app"
+      - "~/.composer:/root/.composer"
+#    command: bash -c "./start.sh"
+    working_dir: "/srv/app"
+
+  mysql:
+    ports:
+      - "13306:3306"
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: homestead
+      MYSQL_USER: homestead
+      MYSQL_PASSWORD: secret
+    volumes:
+      - ".docker/mysql:/var/lib/mysql"
+    restart: always
+
+  redis:
+    image: redis:6.0
+    volumes:
+      - ".docker/redis/conf:/opt/redis/etc"
+      - ".docker/redis/data:/opt/redis/data"
+    ports:
+      - "6379:6379"
+
+  laravel-echo:
+    build:
+      context: .
+      dockerfile: .docker/laravel-echo/Dockerfile
+    volumes:
+      - ".:/srv/app"
+    working_dir: "/srv/app"
+    ports:
+      - "6001:6001"
+    command: bash -c "laravel-echo-server start"
+    links:
+      - 'redis:redis'
